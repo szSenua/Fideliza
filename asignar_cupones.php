@@ -6,7 +6,7 @@ $rol = isset($_SESSION['tipoUsuario']) ? $_SESSION['tipoUsuario'] : '';
 if ((!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true  && $rol !== 'administrador')) {
     // Si no está logado y no es admin
     header('Location: menu.php');
-    exit(); 
+    exit();
 }
 
 require_once 'conecta.php';
@@ -28,21 +28,33 @@ foreach (obtenerPremios($con) as $premio) {
     $premios[] = $premio;
 }
 
-foreach ($premios as $premio){
-    foreach ($clientes as $cliente){
-        $sqlBusca = "SELECT premioid from cupones where clienteid = ? and premioid = ?";
+
+
+foreach ($premios as $premio) {
+
+    $hoy = new DateTime();
+    $fecha_actual = $hoy->format('Y-m-d');
+
+    foreach ($clientes as $cliente) {
+        //Miro si el cliente ya tiene ese cupón y está en validez
+        $sqlBusca = "SELECT premioid from cupones 
+         where clienteid = ? 
+         and premioid = ? 
+         and fechaf_validez > ?";
+
         $stmt = $con->prepare($sqlBusca);
         $stmt->bindParam(1, $cliente['clienteid']);
         $stmt->bindParam(2, $premio['premioid']);
+        $stmt->bindParam(3, $fecha_actual);
         $stmt->execute();
 
         $filas_afectadas = $stmt->rowCount();
 
 
-        if ($filas_afectadas === 0){
+        if ($filas_afectadas === 0) {
 
             //Tomar la fecha actual para los nuevos cupones y la validez será de 7 días
-            $fechai_validez = new DateTime(); 
+            $fechai_validez = new DateTime();
             $fecha_actual = $hoy->format('Y-m-d');
 
             $fechai_validez->modify('+7 days');
@@ -61,7 +73,7 @@ foreach ($premios as $premio){
 
             // Obtengo el cuponid del cupón recién insertado
             $cuponid = $con->lastInsertId();
-            
+
             // Guardo el id de los cupones recién insertados    
             $nuevosCupones[] = $cuponid;
         }
@@ -71,18 +83,20 @@ foreach ($premios as $premio){
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cupones asignados</title>
 </head>
+
 <body>
     <h2>Cupones Asignados</h2>
-    
+
     <?php
-   if (!$seRealizaronInserciones) {
-    echo "<h3>No hay nuevas inserciones</h3>";
-        } else {
+    if (!$seRealizaronInserciones) {
+        echo "<h3>No hay nuevas inserciones</h3>";
+    } else {
         echo "<ul>";
         foreach ($nuevosCupones as $cuponid) {
             $sqlSeleccionarAsignado = "SELECT clientes.cnombre, clientes.capellido, premios.ddescrip 
@@ -101,6 +115,7 @@ foreach ($premios as $premio){
     }
     ?>
 </body>
+
 </html>
 
 <?php
